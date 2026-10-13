@@ -2,7 +2,9 @@
 ## Code to follow along
 
 
-<img src="img/" alt="Alt text" style="width: 50%; height: auto;">
+<img src="img/github-qrcode.png" alt="Alt text" style="width: 40%; height: auto;">
+
+https://github.com/guillaumeagile/Cute-KanDDDinsky-2026
 
 
 --
