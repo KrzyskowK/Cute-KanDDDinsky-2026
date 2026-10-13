@@ -12,6 +12,9 @@ public record Price
 
     public Price(decimal amount, string currency)
     {
+        if (amount < 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), "A price cannot be negative");
+
         Amount = amount;
         Currency = currency;
         Margin = 20;
