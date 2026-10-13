@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using OmniProduct_CoreDomain.Models.Suppliers;
 
 namespace OmniProduct_CoreDomain.Models;
 
@@ -7,7 +8,7 @@ namespace OmniProduct_CoreDomain.Models;
 // that was faster than wiring up configuration for a "temporary" prototype three years ago.
 public class OmniProductDbContext : DbContext
 {
-    public DbSet<Product> Products { get; set; }
+    public DbSet<ActiveProduct> Products { get; set; }
     public DbSet<Supplier> Suppliers { get; set; }
     public DbSet<Warehouse> Warehouses { get; set; }
     public DbSet<Notification> Notifications { get; set; }
@@ -25,7 +26,7 @@ public class OmniProductDbContext : DbContext
     {
         // Re-declares in fluent config almost everything the data annotations above already say,
         // because whoever wrote this didn't trust attributes (or forgot they were there).
-        modelBuilder.Entity<Product>(e =>
+        modelBuilder.Entity<ActiveProduct>(e =>
         {
             e.ToTable("Products");
             e.HasKey(p => p.Id);
@@ -48,6 +49,11 @@ public class OmniProductDbContext : DbContext
             e.HasKey(s => s.Id);
             e.Property(s => s.Email).IsRequired().HasMaxLength(256);
             e.Ignore(s => s.Products);
+            e.HasDiscriminator<string>("SupplierType")
+                .HasValue<EuropeanSupplier>("European")
+                .HasValue<UkSupplier>("Uk")
+                .HasValue<AsiaSupplier>("Asia")
+                .HasValue<AmericasSupplier>("Americas");
         });
 
         modelBuilder.Entity<Warehouse>(e =>

@@ -1,17 +1,18 @@
 using OmniProduct_CoreDomain.Models;
+using OmniProduct_CoreDomain.Models.Suppliers;
 
 namespace OmniProduct_CoreDomain.Services;
 
 public class ProductService
 {
-    private readonly List<Product> _products = new();
+    private readonly List<ActiveProduct> _products = new();
     private readonly List<Supplier> _suppliers = new();
     private readonly List<Warehouse> _warehouses = new();
     private readonly List<Notification> _notifications = new(); // kept in parallel with Product.Notifications, just in case
 
     // --- Catalog ---
 
-    public Product AddProduct(string name, string region, decimal supplierPrice, string currency)
+    public ActiveProduct AddProduct(string name, string region, decimal supplierPrice, string currency)
     {
         var supplier = _suppliers.FirstOrDefault(s => s.Region == region);
         if (supplier == null)
@@ -25,7 +26,7 @@ public class ProductService
         var price = new Price(supplierPrice, currency);
         var suppliersRegions = new Dictionary<string, Supplier> { { region, supplier } };
 
-        var product = new Product(
+        var product = new ActiveProduct(
             id: Guid.NewGuid().ToString(),
             name: name,
             slug: slug,
@@ -36,15 +37,14 @@ public class ProductService
             weight: 0,
             dimensions: "",
             quantity: 0,
-            stock: 0,
-            warehouse: warehouse
+            stock: 0
         );
 
         _products.Add(product);
         return product;
     }
 
-    public Product GetProduct(string id)
+    public ActiveProduct GetProduct(string id)
     {
         var product = _products.FirstOrDefault(p => p.Id == id);
         if (product == null)
@@ -52,7 +52,7 @@ public class ProductService
         return product;
     }
 
-    public List<Product> GetCatalog(string region)
+    public List<ActiveProduct> GetCatalog(string region)
     {
         return _products
             .Where(p => p.SuppliersRegions.ContainsKey(region) && p.Status != "deprecated")
@@ -73,13 +73,19 @@ public class ProductService
 
     public Supplier AddSupplier(string name, string email, string region)
     {
-        var supplier = new Supplier
+        Supplier supplier = region switch
         {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Email = email,
-            Region = region
+            "UK" => new UkSupplier(),
+            "ASIA" => new AsiaSupplier(),
+            "AMERICAS" => new AmericasSupplier(),
+            _ => new EuropeanSupplier()
         };
+
+        supplier.Id = Guid.NewGuid();
+        supplier.Name = name;
+        supplier.Email = email;
+        supplier.Region = region;
+
         _suppliers.Add(supplier);
         return supplier;
     }
