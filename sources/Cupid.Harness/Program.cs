@@ -47,12 +47,21 @@ var trees = files
     .Select(f => CSharpSyntaxTree.ParseText(File.ReadAllText(f), path: f))
     .ToList();
 
+// The domain project enables <ImplicitUsings>, so its files use System/Linq/... types without a `using`.
+// Mirror those global usings in a compilation-only tree (not handed to the rules) so semantic checks can
+// resolve symbols such as DateTime instead of silently skipping them.
+var implicitUsings = CSharpSyntaxTree.ParseText(
+    "global using System; global using System.Collections.Generic; global using System.IO; " +
+    "global using System.Linq; global using System.Net.Http; global using System.Threading; " +
+    "global using System.Threading.Tasks;");
+
 var compilation = CSharpCompilation.Create(
     "CupidHarness.Analysis",
-    trees,
+    trees.Append(implicitUsings),
     references: new[]
     {
-        MetadataReference.CreateFromFile(typeof(object).Assembly.Location)
+        MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+        MetadataReference.CreateFromFile(typeof(OneOf.OneOf<,>).Assembly.Location)
     },
     options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
@@ -67,14 +76,22 @@ var step1Dot1Rules = new IHarnessRule[]
     new EntityMustImplementIdentifiableRule(),
     new NoServicesInEntityConstructorRule(),
     new NoPersistenceInDomainRule(),
+    new RecordsAreValueObjectsRule(),
+    new RichIdentifierRule(),
+    new BareIdentifierIsWeakRule(),
 };
 
 var step1Dot2Rules = new IHarnessRule[]
 {
     new ImmutableDataStructuresRule(),
-    new AlgebraicDataTypeRule(),
     new NoInheritanceRule(),
-    new RecordsAreValueObjectsRule(),
+    new NoThrowInConstructorRule(),
+    new ValueObjectsAreImmutableRule(),
+    new ProductHasOneOfPropertyRule(),
+    new ValueObjectFactoryRule(),
+    new MatchOverOneOfRule(),
+    new NoClockInModelRule(),
+    new SellChecksCanSellBeforeWithdrawRule(),
 };
 
 IReadOnlyList<IHarnessRule> rules = step switch
@@ -98,8 +115,9 @@ foreach (var rule in rules)
         .ThenBy(v => v.Line)
         .ToList();
 
-    var status = violations.Count == 0 ? "PASS" : "FAIL";
-    if (violations.Count > 0)
+    var isWarning = rule.Severity == HarnessSeverity.Warning;
+    var status = violations.Count == 0 ? "PASS" : isWarning ? "WARN" : "FAIL";
+    if (violations.Count > 0 && !isWarning)
         overallPass = false;
 
     Console.WriteLine($"[{status}] {rule.Id} - {rule.Name}");

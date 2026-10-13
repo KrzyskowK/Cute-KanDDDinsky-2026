@@ -11,24 +11,10 @@ public class ProductServiceTests
     [Fact]
     public void Product_Name_ShouldBeSet()
     {
-        var price = new Price(100m, "EUR");
-        var supplier = new Supplier { Id = Guid.NewGuid().ToString(), Name = "Acme", Email = "acme@example.com", Region = "FR" };
-        var warehouse = new Warehouse { Id = Guid.NewGuid().ToString(), Name = "Paris Hub", Address = "1 rue de la Paix", Region = "FR" };
-
         var product = new Product(
-            id: "p1",
+            id: Ulid.NewUlid(),
             name: "Super Widget",
-            slug: "super-widget",
-            price: price,
-            discounts: new List<string>(),
-            images: new Dictionary<string, string>(),
-            suppliersRegions: new Dictionary<string, Supplier> { { "FR", supplier } },
-            weight: 0.5,
-            dimensions: "10x5x3",
-            quantity: 0,
-            stock: 0,
-            warehouse: warehouse,
-            productService: new ProductService()
+            slug: "super-widget"
         );
 
         product.Name.Should().Be("Super Widget");
@@ -39,9 +25,9 @@ public class ProductServiceTests
     [Fact]
     public void AddSupplier_ShouldReturnSupplierWithCorrectRegion()
     {
-        var service = new ProductService();
+        var supplierService = new SupplierService();
 
-        var supplier = service.AddSupplier("Acme", "acme@example.com", "FR");
+        var supplier = supplierService.AddSupplier("Acme", "acme@example.com", "FR");
 
         supplier.Region.Should().Be("FR");
     }
@@ -51,37 +37,43 @@ public class ProductServiceTests
     [Fact]
     public void FullProductLifecycle_ShouldWork()
     {
-        var service = new ProductService();
+        var pricingService = new PricingService();
+        var supplierService = new SupplierService();
+        var storageService = new StorageService();
+        var notificationService = new NotificationService();
+        var productLifecycleService = new ProductLifecycleService(pricingService, supplierService, storageService, notificationService);
+        var catalogService = new CatalogService(productLifecycleService, supplierService);
 
-        var supplier = service.AddSupplier("Acme", "acme@example.com", "FR");
-        var warehouse = service.AddWarehouse("Paris Hub", "1 rue de la Paix", "FR");
+        var supplier = supplierService.AddSupplier("Acme", "acme@example.com", "FR");
+        var warehouse = storageService.AddWarehouse("Paris Hub", "1 rue de la Paix", "FR");
 
-        var product = service.AddProduct("Super Widget", "FR", 100m, "EUR");
+        var product = catalogService.CreateListing("Super Widget", "FR", 100m, "EUR");
+        var storedProduct = storageService.GetStock(product.Id);
 
         product.Should().NotBeNull();
         product.Name.Should().Be("Super Widget");
-        product.Stock.Should().Be(0);
+        storedProduct.Stock.Should().Be(0);
         product.Status.Should().Be("active");
 
-        service.ReceiveStock(product.Id, 50);
-        product.Stock.Should().Be(50);
+        storageService.ReceiveStock(product.Id, 50);
+        storedProduct.Stock.Should().Be(50);
 
-        service.SellProduct(product.Id, 10);
-        product.Stock.Should().Be(40);
+        productLifecycleService.SellProduct(product.Id, 10);
+        storedProduct.Stock.Should().Be(40);
         product.Status.Should().Be("active");
 
-        service.SellProduct(product.Id, 40);
-        product.Stock.Should().Be(0);
+        productLifecycleService.SellProduct(product.Id, 40);
+        storedProduct.Stock.Should().Be(0);
         product.Status.Should().Be("out_of_stock");
 
-        var resellerPrice = service.GetResellerPrice(product.Id);
+        var resellerPrice = pricingService.GetResellerPrice(product.Id);
         resellerPrice.Should().Be(124m); // 100 + 20% margin + 20% VAT on margin
 
-        service.DeprecateProduct(product.Id);
+        productLifecycleService.DeprecateProduct(product.Id);
         product.Status.Should().Be("deprecated");
-        product.Stock.Should().Be(0);
+        storedProduct.Stock.Should().Be(0);
 
-        var catalog = service.GetCatalog("FR");
+        var catalog = catalogService.GetCatalog("FR");
         catalog.Should().NotContain(p => p.Id == product.Id);
     }
 }

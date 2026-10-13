@@ -1,25 +1,17 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using OmniProduct_CoreDomain.Abstractions;
+using OmniProduct_CoreDomain.Models.Storage;
 
 namespace OmniProduct_CoreDomain.Models;
 
-[Table("Warehouses")]
 public class Warehouse : IDentifiable
 {
-    [Key]
-    public string Id { get; set; }
+    public Ulid Id { get; set; }
 
-    [Required]
-    [MaxLength(256)]
     public string Name { get; set; }
 
-    [MaxLength(512)]
     public string Address { get; set; }
 
-    [MaxLength(8)]
     public string Region { get; set; }
 
-    [NotMapped]
-    public List<Product> Products { get; set; } = new();
+    public List<Ulid> StoredProductIds { get; set; } = new();
 }
