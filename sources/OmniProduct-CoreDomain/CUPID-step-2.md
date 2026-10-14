@@ -40,7 +40,7 @@ https://comcomponent.com/en/blog/2026/06/09/003-dotnet-algebraic-data-types/#10-
 no inheritance, verifed by static code analysis
 
 
-### HA11 - Records are Value Objects, never entities
+### HA3 - Records are Value Objects, never entities
 
 a record must never implement `IDentifiable` - identity belongs to entities (HA9), and a record's
 job is to be a Value Object: immutable, equality by value, no identity. HA2 already forbids

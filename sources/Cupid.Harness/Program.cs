@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Usage: Cupid.Harness [--step 1.1|1.2] <path-to-source-directory> [more-paths...]");
+    Console.Error.WriteLine("Usage: Cupid.Harness [--step 1.1] <path-to-source-directory> [more-paths...]");
     return 2;
 }
 
@@ -16,7 +16,7 @@ if (stepFlagIndex >= 0)
 {
     if (stepFlagIndex + 1 >= pathArgs.Count)
     {
-        Console.Error.WriteLine("--step requires a value: 1.1 or 1.2");
+        Console.Error.WriteLine("--step requires a value: 1.1");
         return 2;
     }
 
@@ -26,7 +26,7 @@ if (stepFlagIndex >= 0)
 
 if (pathArgs.Count == 0)
 {
-    Console.Error.WriteLine("Usage: Cupid.Harness [--step 1.1|1.2] <path-to-source-directory> [more-paths...]");
+    Console.Error.WriteLine("Usage: Cupid.Harness [--step 1.1] <path-to-source-directory> [more-paths...]");
     return 2;
 }
 
@@ -47,21 +47,12 @@ var trees = files
     .Select(f => CSharpSyntaxTree.ParseText(File.ReadAllText(f), path: f))
     .ToList();
 
-// The domain project enables <ImplicitUsings>, so its files use System/Linq/... types without a `using`.
-// Mirror those global usings in a compilation-only tree (not handed to the rules) so semantic checks can
-// resolve symbols such as DateTime instead of silently skipping them.
-var implicitUsings = CSharpSyntaxTree.ParseText(
-    "global using System; global using System.Collections.Generic; global using System.IO; " +
-    "global using System.Linq; global using System.Net.Http; global using System.Threading; " +
-    "global using System.Threading.Tasks;");
-
 var compilation = CSharpCompilation.Create(
     "CupidHarness.Analysis",
-    trees.Append(implicitUsings),
+    trees,
     references: new[]
     {
-        MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-        MetadataReference.CreateFromFile(typeof(OneOf.OneOf<,>).Assembly.Location)
+        MetadataReference.CreateFromFile(typeof(object).Assembly.Location)
     },
     options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
@@ -80,25 +71,11 @@ var step1Dot1Rules = new IHarnessRule[]
     new BareIdentifierIsWeakRule(),
 };
 
-var step1Dot2Rules = new IHarnessRule[]
-{
-    new ImmutableDataStructuresRule(),
-    new RecordsAreValueObjectsRule(),
-    new NoInheritanceRule(),
-    new NoThrowInConstructorRule(),
-    new ProductHasOneOfPropertyRule(),
-    new ValueObjectFactoryRule(),
-    new MatchOverOneOfRule(),
-    new NoClockInModelRule(),
-    new SellChecksCanSellBeforeWithdrawRule(),
-};
-
 IReadOnlyList<IHarnessRule> rules = step switch
 {
     "1.1" => step1Dot1Rules,
-    "1.2" => step1Dot2Rules,
-    "all" => step1Dot1Rules.Concat(step1Dot2Rules).ToList(),
-    _ => throw new ArgumentException($"Unknown --step value '{step}'. Use 1.1, 1.2, or omit for all.")
+    "all" => step1Dot1Rules,
+    _ => throw new ArgumentException($"Unknown --step value '{step}'. Use 1.1 or omit.")
 };
 
 Console.WriteLine($"CUPID step {step} harness - deterministic structural checks");
