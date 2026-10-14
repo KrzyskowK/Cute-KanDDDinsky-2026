@@ -51,8 +51,8 @@ mixing responsibilities - the exact `ProductService`/`Product` smell this exerci
 ### HA7 - Fan-out
 
 applies only to entities - types declared under `OmniProduct_CoreDomain.Models.*` that implement
-`IDentifiable` (see HA9). An entity may reference NO other entity type (strict cap of 0) - via fields, properties, constructor/method
-parameters, return types, locals, or generic arguments such as `List<Supplier>` - using that same definition; entities relate by identifier (e.g. `WarehouseId`) only - not
+`IDentifiable` (see HA9). An entity may directly reference (via fields, constructor/method
+parameters, or local variables) at most 3 distinct entity types, using that same definition - not
 every domain type and not BCL/framework types. Value objects and services don't count toward the
 cap, and neither does an `IDentifiable` implementer declared outside `Models.*` (HA9 should
 already forbid that; HA7 checks the namespace itself rather than relying on it). Non-entity
@@ -96,3 +96,17 @@ under `OmniProduct_CoreDomain.Services.*` or simply named `*Service` - as a cons
 constructible from plain values, value objects, or other entities. Accepting a service inverts the
 dependency direction the workshop is teaching - services depend on entities, never the other way
 round. Move the orchestration into the service layer instead.
+
+### HA12 - Identifiers are rich objects (UUID v7+ or ULID)
+
+every `Id` / `*Id` / `*Ids` property, field, local, return type or parameter of the model and events (anything outside
+a `Services` namespace) must be a `Guid` or a `Ulid`, or a record wrapping exactly one of them
+(`record ProductId(Guid Value)`). A `string`, `int` or `long` identifier is a violation. For `*Ids` collections and
+dictionaries the element and key types are checked. "At least v7" is checked by shape: `Guid.NewGuid()` (v4),
+`Guid.Empty`, `new Guid()` and `default(Guid)` are flagged where they build an identifier; `Guid.CreateVersion7()` and
+`Ulid.NewUlid()` are fine.
+
+**HA12.1 (warning only, `[WARN]`):** primitive obsession on identifiers, services included. Any id member whose type is
+not declared in the analysed source (so a BCL or package type used raw: `string`, `int`, `Guid`, `Ulid`, `Uri`, ...)
+gets a warning asking for a domain record, so a `ProductId` cannot be mixed up with a `SupplierId`. A `string` id
+therefore both fails HA12 and warns in HA12.1.
