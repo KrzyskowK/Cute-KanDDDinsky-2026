@@ -1,10 +1,10 @@
 ### eXtreme Programming
-<img src="img/XP.png" alt="Alt text" style="width: 150%; height: auto;">
+<img src="img/XP.png" alt="XP" style="width: 150%; height: auto;">
 
 --
 
 ### Agentic Programming
-<img src="img/AI XP CORE.png" alt="Alt text" style="width: 150%; height: auto;">
+<img src="img/AI XP CORE.png" alt="AI XP" style="width: 150%; height: auto;">
 
 --
 
