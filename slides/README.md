@@ -4,17 +4,22 @@ The talk is written in Markdown (`markdown/*.md`) and rendered with [reveal.js](
 
 ## Start the slideshow
 
+From this `slides/` folder, install the dev dependencies once, then start the dev server:
 
+```bash
+npm install
+npm run dev
+```
 
-From this `slides/` folder, run a static server:
+This opens <http://localhost:8080> and reloads the browser whenever a Markdown or HTML file in `slides/` changes.
+
+Without Node, any static server works, but it will not reload on change. Run it from this `slides/` folder and open the root URL:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then open <http://localhost:8000/slides> in a browser.
-
-Any static server works (`npx serve`, the VS Code "Live Server" extension, etc.).
+Then open <http://localhost:8000/> in a browser (not `/slides`: the folder is served at the root).
 
 ## Keyboard shortcuts
 
