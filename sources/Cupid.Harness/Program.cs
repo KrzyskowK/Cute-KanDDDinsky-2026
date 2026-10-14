@@ -91,7 +91,6 @@ var step1Dot2Rules = new IHarnessRule[]
     new MatchOverOneOfRule(),
     new NoClockInModelRule(),
     new SellChecksCanSellBeforeWithdrawRule(),
-    new AlgebraicDataTypeRule(),
 };
 
 IReadOnlyList<IHarnessRule> rules = step switch
