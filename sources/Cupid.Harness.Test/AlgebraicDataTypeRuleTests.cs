@@ -55,7 +55,7 @@ public class AlgebraicDataTypeRuleTests
     // Regression: a codebase with zero record hierarchies has nothing to check, so the rule
     // reports no violations - a vacuous PASS. That is wrong when the exercise (CUPID step 1.2:
     // Price rules that "may apply" Margin, then TransportationFee, then VAT) requires an ADT to
-    // exist in the first place. Absence of any union is itself a HA3 failure.
+    // exist in the first place. Absence of any union is itself a HA4.8 failure.
     [Fact]
     public void NoRecordHierarchyAtAll_ShouldBeFlagged()
     {

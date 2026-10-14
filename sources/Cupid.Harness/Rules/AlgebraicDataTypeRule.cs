@@ -3,13 +3,13 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Cupid.Harness.Rules;
 
-// HA3 - ADT (algebraic data structures): enforce the use of pseudo-union types via record
+// HA4.8 - ADT (algebraic data structures): enforce the use of pseudo-union types via record
 // hierarchies. A base record that has subtypes is a union: the base must be 'abstract' and every
 // direct subtype must be 'sealed', so consumers get exhaustive pattern matching instead of open
 // extension.
 public sealed class AlgebraicDataTypeRule : IHarnessRule
 {
-    public string Id => "HA3";
+    public string Id => "HA4.8";
     public string Name => "ADT via record hierarchy (abstract base, sealed leaves)";
 
     public IReadOnlyList<Violation> Check(IReadOnlyList<SyntaxTree> trees, Compilation compilation)
@@ -41,11 +41,11 @@ public sealed class AlgebraicDataTypeRule : IHarnessRule
             // No record hierarchy at all means there's nothing to check - which used to report a
             // vacuous PASS. But the exercise this harness gates on requires an ADT/pseudo-union to
             // exist (e.g. Price rules that may apply Margin, then TransportationFee, then VAT), so
-            // "no union anywhere" is itself a HA3 failure, not a free pass.
+            // "no union anywhere" is itself a HA4.8 failure, not a free pass.
             violations.Add(new Violation(
                 FilePath: trees.Count > 0 ? trees[0].FilePath : "<no files>",
                 Line: 1,
-                Message: "No ADT / pseudo-union record hierarchy found. HA3 requires at least one abstract record base with sealed subtypes."));
+                Message: "No ADT / pseudo-union record hierarchy found. HA4.8 requires at least one abstract record base with sealed subtypes."));
             return violations;
         }
 
