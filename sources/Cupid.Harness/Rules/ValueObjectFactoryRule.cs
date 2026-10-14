@@ -23,7 +23,7 @@ public sealed class ValueObjectFactoryRule : IHarnessRule
             foreach (var recordDecl in tree.GetRoot().DescendantNodes().OfType<RecordDeclarationSyntax>())
             {
                 if (model.GetDeclaredSymbol(recordDecl) is INamedTypeSymbol symbol
-                    && ValueObjectsAreImmutableRule.IsValueObject(symbol)
+                    && RecordsAreValueObjectsRule.IsValueObject(symbol)
                     && symbol.GetMembers().OfType<IMethodSymbol>().Any(m => IsValidatingFactory(symbol, m)))
                     return [];
             }

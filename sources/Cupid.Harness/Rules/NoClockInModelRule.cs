@@ -58,5 +58,5 @@ public sealed class NoClockInModelRule : IHarnessRule
 
     private static bool IsModelType(INamedTypeSymbol type) =>
         type.AllInterfaces.Any(i => i.Name == EntityMarkerInterfaceName)
-        || ValueObjectsAreImmutableRule.IsValueObject(type);
+        || RecordsAreValueObjectsRule.IsValueObject(type);
 }

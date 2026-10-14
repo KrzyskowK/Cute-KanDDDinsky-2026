@@ -39,7 +39,7 @@ directory:
 
 ```
 ./cupid-step-1-1.harness.sh   # HA1, HA5-HA12: idioms, god class, single concern, fan-out, no persistence in domain, entities implement IDentifiable, no services in entity ctors, records are Value Objects, rich ULID/UUIDv7 ids (HA12.1 is a [WARN])
-./cupid-step-1-2.harness.sh   # HA1-HA4: idioms, immutability, ADT, composable (HA3 and HA4.1-HA4.7: no inheritance, no throwing ctors, VOs, OneOf/Match, no clock; HA4.7 is a [WARN])
+./cupid-step-1-2.harness.sh   # HA1-HA4: idioms, immutability, value objects, composable (HA3, HA4.1-HA4.7: no inheritance, no throwing ctors, VOs, OneOf/Match, no clock; HA4.7 is a [WARN])
 ```
 
 These build the exercise project with Roslyn analyzers promoted to errors, then run

@@ -26,7 +26,18 @@ use FxCop to enforce C#14 style
 enforce the usage of records and all imutable collections
 no setter on any property
 
-### HA3 - ADT (algebraic data structures) — rule removed, covered by HA4.3
+### HA3 - Records are Value Objects, never entities
+
+a record must never implement `IDentifiable` - identity belongs to entities (HA9), and a record's
+job is to be a Value Object: immutable, equality by value, no identity. HA2 already forbids
+setters and HA5 (step 1.1) already caps public properties at 4; this rule adds record != entity and, on every value object, no mutable field and no mutable collection. The `OmniProduct_CoreDomain.ValueObjects.*` namespace also holds records only: a `class` or plain `struct` declared there is a violation.
+
+This rule also pins the concrete deliverable of this step: a record named `Price` must exist
+under `OmniProduct_CoreDomain.ValueObjects`. `Price` is the running Value Object example - refactor it
+to drop the VAT entity, and keep it composable (Margin, then TransportationFee, then VAT) while
+staying an immutable record.
+
+### ADT (algebraic data structures) — covered by HA4.3
 
 Represent closed alternatives with `OneOf<T0, T1, ...>` from the `OneOf` NuGet package. Its `.Match(...)` API forces each alternative to be handled, without relying on an inheritance hierarchy. This also satisfies HA4's no-inheritance constraint.
 
@@ -103,7 +114,7 @@ existing class hierarchy, you extended by modification instead of composition.
 
 #### What the harness checks
 
-HA4 is verified by eight small Roslyn rules, `HA4.1` to `HA4.7`. They never pin a type name
+HA4 is verified by seven small Roslyn rules, `HA4.1` to `HA4.7`. They never pin a type name
 (except `Product`, `SellProduct`, `CanSell`, `Withdraw`, `Create`/`Build` and `IValidationError`), so you are free to
 choose yours. A *value object* here is a `record` / `record struct` that does not implement `IDentifiable`.
 
@@ -111,7 +122,6 @@ choose yours. A *value object* here is a `record` / `record struct` that does no
 |---|---|---|
 | HA4.1 | No class or record has a base type other than `object` (interfaces are fine; `OneOfBase<...>` is caught). | error |
 | HA4.2 | No exception is thrown in a constructor (`throw`, `?? throw`, `ThrowIf*`). Return a `OneOf` from a factory instead. | error |
-| HA3 | At least one value object exists, and every value object is immutable (no setter, no mutable field, no mutable collection). | error |
 | HA4.3 | `Product` has at least one `OneOf<X, Y, ...>` property with no setter, and every type argument is a value object. | error |
 | HA4.4 | At least one value object has a static `Create` or `Build` returning `OneOf<Self, E>`, where `E` implements `IValidationError`. | error |
 | HA4.5 | No `is` / `as` / `switch` on a `OneOf` or on its alternatives, and at least one `.Match(...)` over a `OneOf` whose type arguments are all records. | error |

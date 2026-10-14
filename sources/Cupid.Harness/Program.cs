@@ -76,7 +76,6 @@ var step1Dot1Rules = new IHarnessRule[]
     new EntityMustImplementIdentifiableRule(),
     new NoServicesInEntityConstructorRule(),
     new NoPersistenceInDomainRule(),
-    new RecordsAreValueObjectsRule(),
     new RichIdentifierRule(),
     new BareIdentifierIsWeakRule(),
 };
@@ -84,9 +83,9 @@ var step1Dot1Rules = new IHarnessRule[]
 var step1Dot2Rules = new IHarnessRule[]
 {
     new ImmutableDataStructuresRule(),
+    new RecordsAreValueObjectsRule(),
     new NoInheritanceRule(),
     new NoThrowInConstructorRule(),
-    new ValueObjectsAreImmutableRule(),
     new ProductHasOneOfPropertyRule(),
     new ValueObjectFactoryRule(),
     new MatchOverOneOfRule(),

@@ -6,7 +6,7 @@ namespace Cupid.Harness.Rules;
 // HA4.3 - Composable, step 2: Product carries its differences as composed values, not subclasses.
 // `Product` must have at least one property typed OneOf<T0, T1, ...> (the real OneOf.OneOf<> type, not an
 // OneOfBase subclass), each with no setter (get-only or init), and every type argument must be a value
-// object (see ValueObjectsAreImmutableRule.IsValueObject). Property names are not pinned.
+// object (see RecordsAreValueObjectsRule.IsValueObject). Property names are not pinned.
 public sealed class ProductHasOneOfPropertyRule : IHarnessRule
 {
     private const string ProductTypeName = "Product";
@@ -68,7 +68,7 @@ public sealed class ProductHasOneOfPropertyRule : IHarnessRule
 
             foreach (var typeArgument in ((INamedTypeSymbol)property.Type).TypeArguments)
             {
-                if (typeArgument is not INamedTypeSymbol named || !ValueObjectsAreImmutableRule.IsValueObject(named))
+                if (typeArgument is not INamedTypeSymbol named || !RecordsAreValueObjectsRule.IsValueObject(named))
                     yield return At(tree, location,
                         $"'{product.Name}.{property.Name}': type argument '{typeArgument.Name}' is not a value object (it must be a record that does not implement IDentifiable).");
             }
