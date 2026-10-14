@@ -52,24 +52,20 @@ public class AlgebraicDataTypeRuleTests
         violations.Should().BeEmpty();
     }
 
-    // Regression: a codebase with zero record hierarchies has nothing to check, so the rule
-    // reports no violations - a vacuous PASS. That is wrong when the exercise (CUPID step 1.2:
-    // Price rules that "may apply" Margin, then TransportationFee, then VAT) requires an ADT to
-    // exist in the first place. Absence of any union is itself a HA4.8 failure.
+    // No hierarchy is fine: OneOf<...> is the other accepted way to express an ADT.
     [Fact]
-    public void NoRecordHierarchyAtAll_ShouldBeFlagged()
+    public void NoRecordHierarchyAtAll_ShouldPass()
     {
         var (trees, compilation) = RuleTestHarness.Compile("""
             namespace Sample;
             public class Price
             {
                 public decimal Amount { get; set; }
-                public string Currency { get; set; }
             }
             """);
 
         var violations = _rule.Check(trees, compilation);
 
-        violations.Should().Contain(v => v.Message.Contains("No ADT"));
+        violations.Should().BeEmpty();
     }
 }

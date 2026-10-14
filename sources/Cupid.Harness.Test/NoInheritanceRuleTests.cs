@@ -62,18 +62,4 @@ public class NoInheritanceRuleTests
 
         violations.Should().BeEmpty();
     }
-
-    [Fact]
-    public void SealedRecordDerivingFromAbstractRecord_IsAdtUnionCase_ShouldPass()
-    {
-        var (trees, compilation) = RuleTestHarness.Compile("""
-            namespace Sample;
-            public abstract record Shape;
-            public sealed record Circle(int R) : Shape;
-            """);
-
-        var violations = _rule.Check(trees, compilation);
-
-        violations.Should().BeEmpty();
-    }
 }

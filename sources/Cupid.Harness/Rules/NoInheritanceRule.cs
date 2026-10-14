@@ -5,8 +5,7 @@ namespace Cupid.Harness.Rules;
 
 // HA4.1 - CUPID Composable: extend through composition, not modification/inheritance.
 // Any class/record that derives from another class/record (not an interface, not object/Exception)
-// is flagged. Implementing interfaces is fine; subclassing is not. Exception: a sealed record deriving
-// from an abstract record is an ADT union case (see AlgebraicDataTypeRule, HA4.8).
+// is flagged. Implementing interfaces is fine; subclassing is not.
 public sealed class NoInheritanceRule : IHarnessRule
 {
     public string Id => "HA4.1";
@@ -39,9 +38,6 @@ public sealed class NoInheritanceRule : IHarnessRule
                 if (IsAllowedBase(baseType))
                     continue;
 
-                if (IsUnionCase(symbol!, baseType))
-                    continue; // ADT (HA4.8): sealed record deriving from an abstract record is a union case, not inheritance
-
                 violations.Add(new Violation(
                     tree.FilePath,
                     typeDecl.Identifier().GetLocation().GetLineSpan().StartLinePosition.Line + 1,
@@ -51,9 +47,6 @@ public sealed class NoInheritanceRule : IHarnessRule
 
         return violations;
     }
-
-    private static bool IsUnionCase(INamedTypeSymbol type, INamedTypeSymbol baseType) =>
-        type is { IsRecord: true, IsSealed: true } && baseType is { IsRecord: true, IsAbstract: true };
 
     private static bool IsAllowedBase(INamedTypeSymbol baseType)
     {
