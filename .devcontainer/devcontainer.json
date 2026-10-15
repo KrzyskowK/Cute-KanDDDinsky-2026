@@ -1,0 +1,19 @@
+{
+  "name": "CUPID workshop (.NET 10 / C# 14)",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:10.0",
+  "features": {
+    "ghcr.io/devcontainers/features/powershell:1": {}
+  },
+  "postCreateCommand": "dotnet --info && dotnet restore sources/CuteKanDDDsky-workshop.slnx",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp"
+      ],
+      "settings": {
+        "dotnet.defaultSolution": "sources/CuteKanDDDsky-workshop.slnx"
+      }
+    }
+  }
+}
