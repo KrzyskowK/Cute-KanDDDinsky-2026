@@ -80,7 +80,7 @@ public sealed class MatchOverOneOfRule : IHarnessRule
             .OfType<INamedTypeSymbol>()
             .Where(IsOneOf)
             .SelectMany(type => type.TypeArguments)
-            .ToHashSet(SymbolEqualityComparer.Default);
+            .ToHashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
 
     // Resolved from the receiver type, not the method symbol: the latter is null when the OneOf assembly's own
     // references (netstandard) are not part of the compilation.
