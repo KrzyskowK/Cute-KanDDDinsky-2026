@@ -16,68 +16,51 @@ public sealed class MatchOverOneOfRule : IHarnessRule
 
     public IReadOnlyList<Violation> Check(IReadOnlyList<SyntaxTree> trees, Compilation compilation)
     {
-        var violations = new List<Violation>();
         var models = trees.ToDictionary(t => t, t => compilation.GetSemanticModel(t));
         var alternatives = CollectAlternatives(trees, models);
-        var matchOverRecordsFound = false;
+        var nodes = trees
+            .SelectMany(tree => tree.GetRoot().DescendantNodes().Select(node => (tree, node, model: models[tree])))
+            .ToList();
 
-        foreach (var tree in trees)
-        {
-            var model = models[tree];
+        var typeTests = nodes
+            .Select(x => (x.tree, x.node, kind: TypeTestKind(x.node, x.model, alternatives)))
+            .Where(x => x.kind is not null)
+            .Select(x => new Violation(
+                x.tree.FilePath,
+                x.node.GetLocation().GetLineSpan().StartLinePosition.Line + 1,
+                $"'{x.kind}' on a OneOf or one of its alternatives. Handle each alternative with .Match(...) instead."));
 
-            foreach (var node in tree.GetRoot().DescendantNodes())
-            {
-                var kind = TypeTestKind(node, model, alternatives);
-                if (kind is not null)
-                {
-                    violations.Add(new Violation(
-                        tree.FilePath,
-                        node.GetLocation().GetLineSpan().StartLinePosition.Line + 1,
-                        $"'{kind}' on a OneOf or one of its alternatives. Handle each alternative with .Match(...) instead."));
-                }
-                else if (!matchOverRecordsFound && node is InvocationExpressionSyntax invocation)
-                {
-                    matchOverRecordsFound = IsMatchOverRecords(invocation, model);
-                }
-            }
-        }
+        var matchOverRecordsFound = nodes.Any(x => x.node is InvocationExpressionSyntax invocation && IsMatchOverRecords(invocation, x.model));
 
-        if (!matchOverRecordsFound)
-        {
-            violations.Add(new Violation(
-                trees.FirstOrDefault()?.FilePath ?? string.Empty,
-                1,
-                "No .Match(...) call on a OneOf<...> whose type arguments are all records. Handle the alternatives with Match."));
-        }
-
-        return violations;
+        return typeTests
+            .Concat(matchOverRecordsFound
+                ? []
+                : [new Violation(
+                    trees.FirstOrDefault()?.FilePath ?? string.Empty,
+                    1,
+                    "No .Match(...) call on a OneOf<...> whose type arguments are all records. Handle the alternatives with Match.")])
+            .ToList();
     }
 
     private static string? TypeTestKind(SyntaxNode node, SemanticModel model, HashSet<ITypeSymbol> alternatives)
     {
-        bool Tests(ExpressionSyntax operand, IEnumerable<TypeSyntax> testedTypes) =>
+        string? Tests(string kind, ExpressionSyntax operand, IEnumerable<TypeSyntax> testedTypes) =>
             IsOneOf(model.GetTypeInfo(operand).Type)
-            || testedTypes.Any(t => model.GetTypeInfo(t).Type is { } type && alternatives.Contains(type));
+            || testedTypes.Any(t => model.GetTypeInfo(t).Type is { } type && alternatives.Contains(type))
+                ? kind
+                : null;
 
-        switch (node)
+        return node switch
         {
-            case BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.IsExpression) || binary.IsKind(SyntaxKind.AsExpression):
-                return Tests(binary.Left, binary.Right is TypeSyntax right ? [right] : []) ? (binary.IsKind(SyntaxKind.IsExpression) ? "is" : "as") : null;
-
-            case IsPatternExpressionSyntax isPattern:
-                return Tests(isPattern.Expression, PatternTypes(isPattern.Pattern)) ? "is" : null;
-
-            case SwitchStatementSyntax switchStatement:
-                return Tests(switchStatement.Expression, switchStatement.Sections
-                    .SelectMany(s => s.Labels.OfType<CasePatternSwitchLabelSyntax>())
-                    .SelectMany(l => PatternTypes(l.Pattern))) ? "switch" : null;
-
-            case SwitchExpressionSyntax switchExpression:
-                return Tests(switchExpression.GoverningExpression, switchExpression.Arms.SelectMany(a => PatternTypes(a.Pattern))) ? "switch" : null;
-
-            default:
-                return null;
-        }
+            BinaryExpressionSyntax binary when binary.IsKind(SyntaxKind.IsExpression) || binary.IsKind(SyntaxKind.AsExpression) =>
+                Tests(binary.IsKind(SyntaxKind.IsExpression) ? "is" : "as", binary.Left, new[] { binary.Right }.OfType<TypeSyntax>()),
+            IsPatternExpressionSyntax isPattern => Tests("is", isPattern.Expression, PatternTypes(isPattern.Pattern)),
+            SwitchStatementSyntax statement => Tests("switch", statement.Expression, statement.Sections
+                .SelectMany(s => s.Labels.OfType<CasePatternSwitchLabelSyntax>())
+                .SelectMany(l => PatternTypes(l.Pattern))),
+            SwitchExpressionSyntax expression => Tests("switch", expression.GoverningExpression, expression.Arms.SelectMany(a => PatternTypes(a.Pattern))),
+            _ => null
+        };
     }
 
     private static IEnumerable<TypeSyntax> PatternTypes(PatternSyntax pattern) =>
@@ -90,21 +73,14 @@ public sealed class MatchOverOneOfRule : IHarnessRule
             _ => []
         });
 
-    private static HashSet<ITypeSymbol> CollectAlternatives(IReadOnlyList<SyntaxTree> trees, Dictionary<SyntaxTree, SemanticModel> models)
-    {
-        var alternatives = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
-
-        foreach (var tree in trees)
-        {
-            foreach (var generic in tree.GetRoot().DescendantNodes().OfType<GenericNameSyntax>())
-            {
-                if (models[tree].GetSymbolInfo(generic).Symbol is INamedTypeSymbol type && IsOneOf(type))
-                    alternatives.UnionWith(type.TypeArguments);
-            }
-        }
-
-        return alternatives;
-    }
+    private static HashSet<ITypeSymbol> CollectAlternatives(IReadOnlyList<SyntaxTree> trees, Dictionary<SyntaxTree, SemanticModel> models) =>
+        trees
+            .SelectMany(tree => tree.GetRoot().DescendantNodes().OfType<GenericNameSyntax>()
+                .Select(generic => models[tree].GetSymbolInfo(generic).Symbol))
+            .OfType<INamedTypeSymbol>()
+            .Where(IsOneOf)
+            .SelectMany(type => type.TypeArguments)
+            .ToHashSet(SymbolEqualityComparer.Default);
 
     // Resolved from the receiver type, not the method symbol: the latter is null when the OneOf assembly's own
     // references (netstandard) are not part of the compilation.
