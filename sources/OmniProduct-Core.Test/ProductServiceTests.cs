@@ -1,87 +1,120 @@
 using AwesomeAssertions;
-using OmniProduct_CoreDomain.Models;
+using OmniProduct_CoreDomain.Identifiers;
+using OmniProduct_CoreDomain.Models.CatalogContext;
 using OmniProduct_CoreDomain.Services;
 
 namespace OmniProduct_Core.Test;
 
 public class ProductServiceTests
 {
-    // Weak test #1: tests that a constructor sets a property.
-    // Not wrong, but tells us nothing about domain behaviour.
-    [Fact]
-    public void Product_Name_ShouldBeSet()
+    private readonly Lifecycle _lifecycle;
+    private readonly Storage _storage = new();
+    private readonly Suppliers _suppliers = new();
+    private readonly Pricing _pricing = new();
+    private readonly Transport _transport = new();
+    private readonly Notifications _notifications;
+    private readonly Catalog _catalog;
+    private readonly Sales _sales;
+    private readonly Assortment _assortment;
+
+    public ProductServiceTests()
     {
-        var price = new Price(100m, "EUR");
-        var supplier = new Supplier { Id = Guid.NewGuid().ToString(), Name = "Acme", Email = "acme@example.com", Region = "FR" };
-        var warehouse = new Warehouse { Id = Guid.NewGuid().ToString(), Name = "Paris Hub", Address = "1 rue de la Paix", Region = "FR" };
-
-        var product = new Product(
-            id: "p1",
-            name: "Super Widget",
-            slug: "super-widget",
-            price: price,
-            discounts: new List<string>(),
-            images: new Dictionary<string, string>(),
-            suppliersRegions: new Dictionary<string, Supplier> { { "FR", supplier } },
-            weight: 0.5,
-            dimensions: "10x5x3",
-            quantity: 0,
-            stock: 0,
-            warehouse: warehouse,
-            productService: new ProductService()
-        );
-
-        product.Name.Should().Be("Super Widget");
+        _lifecycle = new Lifecycle(TimeProvider.System);
+        _notifications = new Notifications(TimeProvider.System);
+        _catalog = new Catalog(_lifecycle, _storage, _suppliers);
+        _sales = new Sales(_catalog, _storage, _suppliers, _notifications);
+        _assortment = new Assortment(_lifecycle, _catalog, _pricing, _storage, _suppliers, _transport, _notifications);
     }
 
-    // Weak test #2: tests that adding a supplier to the service increments a list.
-    // Asserts internal plumbing, not business intent.
+    [Fact]
+    public void CatalogProduct_Name_ShouldBeSet()
+    {
+        var product = new CatalogProduct(ProductId.New(), "Super Widget");
+
+        product.Name.Should().Be("Super Widget");
+        product.Slug.Should().Be("super-widget");
+    }
+
     [Fact]
     public void AddSupplier_ShouldReturnSupplierWithCorrectRegion()
     {
-        var service = new ProductService();
-
-        var supplier = service.AddSupplier("Acme", "acme@example.com", "FR");
+        var supplier = _suppliers.AddSupplier("Acme", "acme@example.com", "FR");
 
         supplier.Region.Should().Be("FR");
     }
 
-    // Too-broad test: one test, full lifecycle, asserting everything everywhere.
-    // Passes today, impossible to diagnose when it fails.
     [Fact]
     public void FullProductLifecycle_ShouldWork()
     {
-        var service = new ProductService();
+        _suppliers.AddSupplier("Acme", "acme@example.com", "FR");
+        _storage.AddWarehouse("Paris Hub", "1 rue de la Paix", "FR");
 
-        var supplier = service.AddSupplier("Acme", "acme@example.com", "FR");
-        var warehouse = service.AddWarehouse("Paris Hub", "1 rue de la Paix", "FR");
+        var productId = _assortment.AddProduct("Super Widget", "FR", 100m, "EUR");
 
-        var product = service.AddProduct("Super Widget", "FR", 100m, "EUR");
+        _catalog.Get(productId).Name.Should().Be("Super Widget");
+        _storage.GetStock(productId).Stock.Should().Be(0);
+        _lifecycle.Get(productId).IsDeprecated.Should().BeFalse();
 
-        product.Should().NotBeNull();
-        product.Name.Should().Be("Super Widget");
-        product.Stock.Should().Be(0);
-        product.Status.Should().Be("active");
+        _storage.ReceiveStock(productId, 50);
+        _storage.GetStock(productId).Stock.Should().Be(50);
 
-        service.ReceiveStock(product.Id, 50);
-        product.Stock.Should().Be(50);
+        _sales.Sell(productId, 10);
+        _storage.GetStock(productId).Stock.Should().Be(40);
+        _storage.GetStock(productId).IsOutOfStock.Should().BeFalse();
 
-        service.SellProduct(product.Id, 10);
-        product.Stock.Should().Be(40);
-        product.Status.Should().Be("active");
+        _sales.Sell(productId, 40);
+        _storage.GetStock(productId).Stock.Should().Be(0);
+        _storage.GetStock(productId).IsOutOfStock.Should().BeTrue();
+        _catalog.GetDisplayLabel(productId).Should().Be("[OUT OF STOCK] Super Widget");
 
-        service.SellProduct(product.Id, 40);
-        product.Stock.Should().Be(0);
-        product.Status.Should().Be("out_of_stock");
+        _pricing.GetResellerPrice(productId).Should().Be(124m); // 100 + 20% margin + 20% VAT on margin
 
-        var resellerPrice = service.GetResellerPrice(product.Id);
-        resellerPrice.Should().Be(124m); // 100 + 20% margin + 20% VAT on margin
+        _assortment.DeprecateProduct(productId);
+        _lifecycle.Get(productId).IsDeprecated.Should().BeTrue();
+        _storage.GetStock(productId).Stock.Should().Be(0);
 
-        service.DeprecateProduct(product.Id);
-        product.Status.Should().Be("deprecated");
-        product.Stock.Should().Be(0);
+        _catalog.GetCatalog("FR").Should().NotContain(p => p.Id == productId);
+    }
 
-        var catalog = service.GetCatalog("FR");
-        catalog.Should().NotContain(p => p.Id == product.Id);
+    [Fact]
+    public void Selling_more_than_in_stock_is_rejected()
+    {
+        _suppliers.AddSupplier("Acme", "acme@example.com", "FR");
+        _storage.AddWarehouse("Paris Hub", "1 rue de la Paix", "FR");
+        var productId = _assortment.AddProduct("Super Widget", "FR", 100m, "EUR");
+        _storage.ReceiveStock(productId, 5);
+
+        var sell = () => _sales.Sell(productId, 6);
+
+        sell.Should().Throw<InvalidOperationException>();
+        _storage.GetStock(productId).Stock.Should().Be(5);
+    }
+
+    [Fact]
+    public void Selling_notifies_each_regional_supplier_once()
+    {
+        _suppliers.AddSupplier("Acme", "acme@example.com", "FR");
+        _storage.AddWarehouse("Paris Hub", "1 rue de la Paix", "FR");
+        var productId = _assortment.AddProduct("Super Widget", "FR", 100m, "EUR");
+        _storage.ReceiveStock(productId, 5);
+
+        _sales.Sell(productId, 2);
+
+        _notifications.Sent.Should().ContainSingle()
+            .Which.Recipient.Should().Be("acme@example.com");
+    }
+
+    [Fact]
+    public void Deprecating_notifies_suppliers_and_customers()
+    {
+        _suppliers.AddSupplier("Acme", "acme@example.com", "FR");
+        _storage.AddWarehouse("Paris Hub", "1 rue de la Paix", "FR");
+        var productId = _assortment.AddProduct("Super Widget", "FR", 100m, "EUR");
+
+        _assortment.DeprecateProduct(productId);
+
+        _notifications.Sent.Select(n => n.Recipient)
+            .Should().BeEquivalentTo("acme@example.com", "customers@omniproduct.com");
+        _catalog.GetDisplayLabel(productId).Should().Be("[DISCONTINUED] Super Widget");
     }
 }
