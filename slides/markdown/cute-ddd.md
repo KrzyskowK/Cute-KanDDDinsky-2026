@@ -33,9 +33,9 @@ Clearly communicates business intent
 SOLID → CUPID → CUTE DDD
 ```
 
-- **SOLID**: Technical excellence
-- **CUPID**: Human-centric design
-- **CUTE DDD**: Business-value focus
+- **SOLID**: OOP legacy
+- **CUPID**: Technical excellence
+- **CUTE DDD**: Human-centric design
 
 ### 🎯 Key Insight
 > _"The best code is not just correct, but also tells the right business story"_
@@ -81,4 +81,4 @@ SOLID → CUPID → CUTE DDD
 
 ## Feedback?
 
-![add-image.png](https://)
+come talk to us 🗣️🍻
